@@ -13,7 +13,7 @@ The Lambda function does the following steps:
 
 Imagine you need to transfer GB and GB of files in one go, you will end up using AWS Batch, for example, and the simple way to transfer N files in one operation is to use awscli, like in this repository.
 
-Using AWS Batch for smaller files is a waste because you need to spin up a machine (spot instance). In addition, it is all time inside the VPC, and the egress data transfer costs more at scale than transferring the same files through the internet gateway. [AWS Batch practise](https://aws.amazon.com/blogs/hpc/aws-batch-best-practices/https://aws.amazon.com/blogs/hpc/aws-batch-best-practices/)
+Using AWS Batch for smaller files is a waste because you need to spin up a machine (spot instance). In addition, it is all time inside the VPC, and the egress data transfer costs more at scale than transferring the same files through the internet gateway. [AWS Batch best practises](https://aws.amazon.com/blogs/hpc/aws-batch-best-practices/https://aws.amazon.com/blogs/hpc/aws-batch-best-practices/)
 
 ### Solution ###
 
