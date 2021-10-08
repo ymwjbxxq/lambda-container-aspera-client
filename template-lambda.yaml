@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'Bucket to bucket Lambda'
+
+Parameters:
+  stage:
+    Type: String
+    Default: ${opt:stage}
+  imageUri:
+    Default: ${opt:imageUri}
+    Type: String
+
+Mappings:
+  LambdaConfig:
+    test:
+      logRetentionDays: 7
+      myBucket: myBucket
+      memory: 2048
+      timeout: 30
+    stage:
+      logRetentionDays: 7
+      myBucket: myBucket
+      memory: 2048
+      timeout: 30
+    prod:
+      logRetentionDays: 30
+      myBucket: myBucket
+      memory: 2048
+      timeout: 30
+
+  Subnets:
+    test:
+      subnet1: myPrivateSubnetA
+      subnet2: myPrivateSubnetB
+      subnet3: myPrivateSubnetC
+    stage:
+      subnet1: myPrivateSubnetA
+      subnet2: myPrivateSubnetB
+      subnet3: myPrivateSubnetC
+    prod:
+      subnet1: myPrivateSubnetA
+      subnet2: myPrivateSubnetB
+      subnet3: myPrivateSubnetC
+
+  SecurityGroups:
+    test:
+      sg: sg1
+    stage:
+      sg: sg1
+    prod:
+      sg: sg1
+
+Globals:
+  Function:
+    Environment:
+      Variables:
+        ENVIRONMENT: !Sub ${stage}
+        INPUT_BUCKET: !FindInMap [LambdaConfig, !Ref stage, myBucket]
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+Resources:
+  AsperaClientLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-asperaClient
+      RetentionInDays: !FindInMap [LambdaConfig, !Ref stage, logRetentionDays]
+
+  AsperaClientLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-asperaClient
+      PackageType: Image
+      ImageUri: !Sub ${imageUri}
+      MemorySize: !FindInMap [LambdaConfig, !Ref stage, memory]
+      Timeout: !FindInMap [LambdaConfig, !Ref stage, timeout]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3ReadPolicy:
+            BucketName: !FindInMap [LambdaConfig, !Ref stage, myBucket]
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./
+    DependsOn:
+      - AsperaClientLogGroup
+
+  # Lambdas inside the VPC
+  AsperaClientWhitelistedLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-asperaClientWhitelisted
+      RetentionInDays: !FindInMap [LambdaConfig, !Ref stage, logRetentionDays]
+
+  AsperaClientWhitelistedLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-asperaClientWhitelisted
+      PackageType: Image
+      ImageUri: !Sub ${imageUri}
+      MemorySize: !FindInMap [LambdaConfig, !Ref stage, memory]
+      Timeout: !FindInMap [LambdaConfig, !Ref stage, timeout]
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3ReadPolicy:
+            BucketName: !FindInMap [LambdaConfig, !Ref stage, myBucket]
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !FindInMap [SecurityGroups, !Ref stage, sg]
+        SubnetIds:
+          - Fn::ImportValue: !FindInMap [Subnets, !Ref stage, subnet1]
+          - Fn::ImportValue: !FindInMap [Subnets, !Ref stage, subnet2]
+          - Fn::ImportValue: !FindInMap [Subnets, !Ref stage, subnet3]
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./
+    DependsOn:
+      - AsperaClientWhitelistedLogGroup
+
+Outputs:
+  AsperaClientLambdaArn:
+    Description: AsperaClientLambda Arn
+    Value:
+      Fn::GetAtt: 
+        - AsperaClientLambda
+        - Arn
+    Export:
+      Name: !Sub asperaClientLambda-${stage}-arn
+  AsperaClientWhitelistedLambdaArn:
+    Description: AsperaClientWhitelistedLambda Arn
+    Value:
+      Fn::GetAtt: 
+        - AsperaClientWhitelistedLambda
+        - Arn
+    Export:
+      Name: !Sub asperaClientWhitelistedLambda-${stage}-arn
+  
